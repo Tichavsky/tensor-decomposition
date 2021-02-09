@@ -43,11 +43,11 @@ for it=1:numit
 %   AA=A'*A;
 %   BB=B'*B;
 %   CC=C'*C;
-  E=T-multi(K,A,B,C);
-  gK=multi(E,A',B',C');
-  gA=reshape(E,Ia,Ib*Ic)*reshape(multi(K,eye(R1),B,C),R1,Ib*Ic)';
-  gB=reshape(permute(E,[2,3,1]),Ib,Ia*Ic)*reshape(permute(multi(K,A,eye(R2),C),[2,3,1]),R2,Ia*Ic)';
-  gC=reshape(permute(E,[3,1,2]),Ic,Ia*Ib)*reshape(permute(multi(K,A,B,eye(R3)),[3,1,2]),R3,Ia*Ib)';
+  E=T-multi2(K,A,B,C);
+  gK=multi2(E,A',B',C');
+  gA=reshape(E,Ia,Ib*Ic)*reshape(multi2(K,eye(R1),B,C),R1,Ib*Ic)';
+  gB=reshape(permute(E,[2,3,1]),Ib,Ia*Ic)*reshape(permute(multi2(K,A,[],C),[2,3,1]),R2,Ia*Ic)';
+  gC=reshape(permute(E,[3,1,2]),Ic,Ia*Ib)*reshape(permute(multi2(K,A,B,[]),[3,1,2]),R3,Ia*Ib)';
 %   J=dejtJ(K,A,B,C);
 %   J'*E(:);
   g=[gK(fx); gA(:); gB(:); gC(:)];
@@ -112,7 +112,7 @@ if rem(it,10)==0
        [it -log10(err2)]  % to monitor decrease of the cost function each 10 iterations
 end    
 end
-semilogy(iter)
+%semilogy(iter)
 end
 %xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 function [err,Y]=chybaT(X,K,A,B,C)
@@ -120,7 +120,7 @@ function [err,Y]=chybaT(X,K,A,B,C)
 % computes an error of approximation of X by sum
 % of outer products of columns of A,B and C
 %
-Y=multi(K,A,B,C);
+Y=multi2(K,A,B,C);
 err=sum((Y(:)-X(:)).^2);
 end
 %xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -158,18 +158,18 @@ XA=reshape(x(ia1+1:ia1+Ia*Ra),Ia,Ra);
 XB=reshape(x(ib1+1:ib1+Ib*Rb),Ib,Rb);
 XC=reshape(x(ic1+1:ic1+Ic*Rc),Ic,Rc);
 AA=A'*A; BB=B'*B; CC=C'*C;
-YK=multi(XK,AA,BB,CC)+multi(K,A'*XA,BB,CC)+multi(K,AA,B'*XB,CC)+multi(K,AA,BB,C'*XC);
-K2A=multi(K,eye(Ra),BB,CC);
-K2B=multi(K,AA,eye(Rb),CC);
-K2C=multi(K,AA,BB,eye(Rc));
-K3A=multi(K,eye(Ra),XB'*B,CC);
-K4A=multi(K,eye(Ra),BB,XC'*C);
+YK=multi2(XK,AA,BB,CC)+multi2(K,A'*XA,BB,CC)+multi2(K,AA,B'*XB,CC)+multi2(K,AA,BB,C'*XC);
+K2A=multi2(K,[],BB,CC);
+K2B=multi2(K,AA,[],CC);
+K2C=multi2(K,AA,BB,[]);
+K3A=multi2(K,[],XB'*B,CC);
+K4A=multi2(K,[],BB,XC'*C);
 %
-K3B=multi(K,XA'*A,eye(Rb),CC);
-K4B=multi(K,AA,eye(Rb),XC'*C);
+K3B=multi2(K,XA'*A,[],CC);
+K4B=multi2(K,AA,[],XC'*C);
 %
-K3C=multi(K,XA'*A,BB,eye(Rc));
-K4C=multi(K,AA,XB'*B,eye(Rc));
+K3C=multi2(K,XA'*A,BB,eye(Rc));
+K4C=multi2(K,AA,XB'*B,eye(Rc));
 %
 YA=A*(reshape(XK,Ra,Rb*Rc)*reshape(K2A,Ra,Rb*Rc)')+XA*(reshape(K2A,Ra,Rb*Rc)*reshape(K,Ra,Rb*Rc)')...
 +A*(reshape(K,Ra,Rb*Rc)*reshape(K3A+K4A,Ra,Rb*Rc)'); %+A*(reshape(K,R,R^2)*reshape(K4A,R,R^2)');
@@ -182,10 +182,81 @@ YC=C*(reshape(permute(XK,[3,1,2]),Rc,Ra*Rb)*reshape(permute(K2C,[3,1,2]),Rc,Ra*R
 y=[YK(:); YA(:); YB(:); YC(:)];
 end
 %
-function T2=multi(T,A,B,C)
-[n1 n2 n3]=size(T);
-r1=size(A,1); r2=size(B,1); r3=size(C,1);
-T1=A*reshape(T,n1,n2*n3);
-T2=reshape(T1,r1*n2,n3)*C.';
-T2=permute(reshape(B*reshape(permute(reshape(T2,r1,n2,r3),[2 1 3]),n2,r1*r3),r2,r1,r3),[2 1 3]);
+function sen=sensitSTD(L,K,A,B,C)
+%
+% Sensitivity of the structured Tucker tensor decomposition.
+% Input:
+%
+%    L .. binary tensor indicationg zeros and nonzeros of the desired
+%          kernel tensor K
+%    K .... core tensor
+%    A,B,C .... factor matrices
+%
+% Programmed by Petr Tichavsky, November 2020
+%
+Ia=size(A,1); Ib=size(B,1); Ic=size(C,1);
+aux=multi2(L,A.^2,B.^2,C.^2);
+sen=sum(aux(:));
+aux=multi2(K,[],B,C);
+sen=sen+Ia*sum(aux(:).^2);
+aux=multi2(K,A,B,[]);
+sen=sen+Ic*sum(aux(:).^2);
+aux=multi2(K,A,[],C);
+sen=sen+Ib*sum(aux(:).^2);
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function u=GRADsenSTD(L,K,A,B,C)
+%
+% Gradient of sensitivity of the structured Tucker tensor decomposition.
+% Input:
+%
+%    L  .. binary tensor indicationg zeros and nonzeros of the desired
+%          kernel tensor K
+%    K .... core tensor
+%    A,B,C .... factor matrices
+%
+% Programmed by Petr Tichavsky, November 2020
+%
+[Ra,Rb,Rc]=size(K); 
+Ia=size(A,1); Ib=size(B,1); Ic=size(C,1);
+uK=Ia*multi2(K,[],B'*B,C'*C)+Ib*multi2(K,A'*A,[],C'*C)+Ic*multi2(K,A'*A,B'*B,[]);
+uA=A.*repmat(sum(reshape(multi2(L,[],B.^2,C.^2),Ra,Ib*Ic),2)',Ia,1);
+aux=permute(multi2(L,A.^2,[],C.^2),[2,1,3]);
+uB=B.*repmat(sum(reshape(aux,Rb,Ia*Ic),2)',Ib,1);
+aux=permute(multi2(L,A.^2,B.^2,[]),[3,1,2]);
+uC=C.*repmat(sum(reshape(aux,Rc,Ib*Ia),2)',Ic,1);
+aux=reshape(multi2(K,[],[],C),Ra,Rb*Ic);
+uA=uA+Ib*A*(aux*aux');
+aux=reshape(multi2(K,[],B,[]),Ra,Ib*Rc);
+uA=uA+Ic*A*(aux*aux');
+aux=reshape(permute(multi2(K,[],[],C),[2,1,3]),Rb,Ra*Ic);
+uB=uB+Ic*B*(aux*aux');
+aux=reshape(permute(multi2(K,A,[],[]),[2,1,3]),Rb,Ia*Rc);
+uB=uB+Ia*B*(aux*aux');
+aux=reshape(permute(multi2(K,[],B,[]),[3,1,2]),Rc,Ra*Ib);
+uC=uC+Ib*C*(aux*aux');
+aux=reshape(permute(multi2(K,A,[],[]),[3,1,2]),Rc,Ia*Rb);
+uC=uC+Ia*C*(aux*aux');
+u=2*[uK(L(:)==1); uA(:); uB(:); uC(:)];
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function T2=multi2(T,A,B,C)
+T2 = T;
+szT = size(T);
+if ~isempty(A)
+    szT(1)=size(A,1);
+    T2=A*reshape(T2,[],szT(2)*szT(3));
+end
+
+if ~isempty(C)
+    szT(3) = size(C,1);
+    T2=reshape(T2,szT(1)*szT(2),[])*C.';
+end
+
+if ~isempty(B)
+    T2 = reshape(T2,szT);    
+    szT(2)= size(B,1);    
+    T2=permute(reshape(B*reshape(permute(T2,[2 1 3]),[],szT(1)*szT(3)),szT([2 1 3])),[2 1 3]);    
+end
+T2 = reshape(T2,szT);    
 end
