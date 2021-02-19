@@ -230,13 +230,13 @@ uA=uA+Ib*A*(aux*aux');
 aux=reshape(multi2(K,[],B,[]),Ra,Ib*Rc);
 uA=uA+Ic*A*(aux*aux');
 aux=reshape(permute(multi2(K,[],[],C),[2,1,3]),Rb,Ra*Ic);
-uB=uB+Ic*B*(aux*aux');
-aux=reshape(permute(multi2(K,A,[],[]),[2,1,3]),Rb,Ia*Rc);
 uB=uB+Ia*B*(aux*aux');
+aux=reshape(permute(multi2(K,A,[],[]),[2,1,3]),Rb,Ia*Rc);
+uB=uB+Ic*B*(aux*aux');
 aux=reshape(permute(multi2(K,[],B,[]),[3,1,2]),Rc,Ra*Ib);
-uC=uC+Ib*C*(aux*aux');
-aux=reshape(permute(multi2(K,A,[],[]),[3,1,2]),Rc,Ia*Rb);
 uC=uC+Ia*C*(aux*aux');
+aux=reshape(permute(multi2(K,A,[],[]),[3,1,2]),Rc,Ia*Rb);
+uC=uC+Ib*C*(aux*aux');
 u=2*[uK(L(:)==1); uA(:); uB(:); uC(:)];
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
